@@ -5179,7 +5179,11 @@
             </tr></thead>
             <tbody>${rows}</tbody>
         </table>
-    
+    </body></html>`);
+    doc.close();
+    setTimeout(() => { printFrame.contentWindow.print(); document.body.removeChild(printFrame); }, 500);
+}
+</script>
 <script>
 // ============================================================
 // 🌐 GITHUB PAGES API CONFIGURATION & HASH ROUTING
@@ -6793,7 +6797,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Cập nhật giao diện
         tabs.forEach(t => t.classList.remove('active'));
-        let activeBtn = document.querySelector(`[data - tab= "${targetTab}"]`);
+        let activeBtn = document.querySelector(`[data-tab="${targetTab}"]`);
         if (activeBtn) activeBtn.classList.add('active');
         
         document.querySelectorAll('.tab-content, .page').forEach(c => c.classList.remove('active'));
