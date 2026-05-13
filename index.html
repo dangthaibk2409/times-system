@@ -9,6 +9,45 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
+        window.dataCacheTime = window.dataCacheTime || {};
+
+        window.loadTimRanhDataFromServer = function () {
+            const statusEl = document.getElementById('utils-file-status');
+            if (statusEl) {
+                statusEl.innerText = '⏳ Đang kết nối máy chủ để lấy dữ liệu Tìm Rảnh chung...';
+                statusEl.style.color = '#f39c12';
+            }
+
+            fetch('https://script.google.com/macros/s/AKfycbykwx2ubeJVp5Uy16OrHw9SMzHtKchiM0I7a-t3D_D45RJJ9G6EXrJtlL8Cl12ySdqndg/exec', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'getTimRanhData',
+                    args: JSON.stringify([])
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                const data = result.status === 'success' ? result.data : [];
+                if (data && data.length > 0) {
+                    window.externalUtilsData = data;
+                    if (statusEl) {
+                        statusEl.innerText = `✅ Đã tải ${data.length} ca dùng chung từ máy chủ (Sheet TimRanh)!`;
+                        statusEl.style.color = '#27ae60';
+                    }
+                } else if (statusEl) {
+                    statusEl.innerText = '(Chưa có dữ liệu chung. Đang dùng: Lịch phần mềm xếp)';
+                    statusEl.style.color = '#e67e22';
+                }
+            })
+            .catch(error => {
+                if (statusEl) {
+                    statusEl.innerText = 'Không tải được dữ liệu Tìm Rảnh: ' + error.message;
+                    statusEl.style.color = '#c0392b';
+                }
+            });
+        };
+
         window.doLogin = function () {
             const user = document.getElementById('login-user')?.value || '';
             const pass = document.getElementById('login-pass')?.value || '';
@@ -5410,7 +5449,7 @@ console.log('--- JS Block: Foundation started ---');
             reader.readAsArrayBuffer(file);
         }
 
-        function loadTimRanhDataFromServer() {
+        window.loadTimRanhDataFromServer = function() {
             const statusEl = document.getElementById('utils-file-status');
             if (statusEl) {
                 statusEl.innerText = "⏳ Đang kết nối máy chủ để lấy dữ liệu Tìm Rảnh chung...";
@@ -5429,11 +5468,11 @@ console.log('--- JS Block: Foundation started ---');
                     statusEl.style.color = "#e67e22";
                 }
             }).getTimRanhData();
-        }
+        };
 
 
             // Chạy luôn hàm tải dữ liệu ngay khi mở web
-            document.addEventListener('DOMContentLoaded', loadTimRanhDataFromServer);
+            document.addEventListener('DOMContentLoaded', window.loadTimRanhDataFromServer);
 
             function timBacSiRanh() {
             const vao_str = document.getElementById('search-doc-time').value;
