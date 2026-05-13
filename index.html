@@ -8,6 +8,73 @@
     <title>T.I.M.E.S. System</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        window.doLogin = function () {
+            const user = document.getElementById('login-user')?.value || '';
+            const pass = document.getElementById('login-pass')?.value || '';
+            const errDiv = document.getElementById('login-error');
+            const btn = document.getElementById('btn-do-login');
+
+            if (!user || !pass) {
+                if (errDiv) {
+                    errDiv.innerText = 'Vui lòng nhập đủ thông tin!';
+                    errDiv.style.display = 'block';
+                }
+                return;
+            }
+
+            if (btn) {
+                btn.innerText = 'Đang kiểm tra...';
+                btn.disabled = true;
+            }
+
+            fetch('https://script.google.com/macros/s/AKfycbykwx2ubeJVp5Uy16OrHw9SMzHtKchiM0I7a-t3D_D45RJJ9G6EXrJtlL8Cl12ySdqndg/exec', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'verifyLogin',
+                    args: JSON.stringify([user, pass])
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                const res = result.status === 'success' ? result.data : { success: false, message: result.error || 'Lỗi đăng nhập!' };
+                if (res.success) {
+                    localStorage.setItem('meds_session', JSON.stringify({
+                        username: res.username,
+                        role: res.role,
+                        permissions: res.permissions
+                    }));
+                    localStorage.setItem('meds_session_exp', (Date.now() + 28800000).toString());
+                    const overlay = document.getElementById('login-overlay');
+                    if (overlay) overlay.style.display = 'none';
+                    if (typeof updateLogoutButton === 'function') updateLogoutButton(res.username);
+                    if (typeof applyPermissions === 'function') applyPermissions(res.role, res.permissions);
+                    document.querySelector('.nav-tab[data-tab="tab-home"]')?.click();
+                    if (res.role === 'Admin' && typeof loadAccounts === 'function') loadAccounts();
+                } else {
+                    if (errDiv) {
+                        errDiv.innerText = res.message || 'Sai tài khoản hoặc mật khẩu!';
+                        errDiv.style.display = 'block';
+                    }
+                    if (btn) {
+                        btn.innerText = 'Đăng Nhập ➔';
+                        btn.disabled = false;
+                    }
+                }
+            })
+            .catch(error => {
+                if (errDiv) {
+                    errDiv.innerText = 'Lỗi kết nối API: ' + error.message;
+                    errDiv.style.display = 'block';
+                }
+                if (btn) {
+                    btn.innerText = 'Đăng Nhập ➔';
+                    btn.disabled = false;
+                }
+            });
+        };
+    </script>
 
     <style>
         * {
