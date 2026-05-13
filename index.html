@@ -6,7 +6,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>T.I.M.E.S. System</title>
-    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
@@ -2303,6 +2304,122 @@
             /* Kẻ vạch xanh cho nổi bật */
             border-radius: 0 0 8px 8px !important;
             margin: 0 !important;
+        }
+
+        /* Final header sizing: prevent the logo, unit name and clock from being clipped. */
+        .header-fixed-section {
+            overflow: visible !important;
+            flex: 0 0 auto !important;
+        }
+
+        .hospital-banner-global {
+            min-height: 82px !important;
+            padding: 10px 18px 8px !important;
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            column-gap: 16px !important;
+            align-items: center !important;
+            overflow: visible !important;
+        }
+
+        .banner-left {
+            min-width: 0 !important;
+            gap: 14px !important;
+            overflow: visible !important;
+        }
+
+        .banner-logo {
+            width: 72px !important;
+            height: 60px !important;
+            object-fit: contain !important;
+            flex: 0 0 72px !important;
+        }
+
+        .banner-text {
+            min-width: 0 !important;
+            align-items: flex-start !important;
+            text-align: left !important;
+            overflow: visible !important;
+        }
+
+        .banner-text h2 {
+            font-size: 15px !important;
+            line-height: 1.18 !important;
+            margin: 0 0 3px !important;
+            white-space: normal !important;
+        }
+
+        .banner-text h3 {
+            font-size: 12px !important;
+            line-height: 1.18 !important;
+            margin: 0 0 5px !important;
+            padding-bottom: 3px !important;
+            white-space: normal !important;
+        }
+
+        .banner-text p {
+            font-size: 11px !important;
+            line-height: 1.25 !important;
+            padding: 3px 10px !important;
+            white-space: normal !important;
+        }
+
+        .banner-right {
+            flex: 0 0 auto !important;
+            margin-left: 0 !important;
+            padding-right: 12px !important;
+            overflow: visible !important;
+            justify-content: flex-end !important;
+        }
+
+        .banner-clock {
+            min-width: 150px !important;
+            padding: 4px 8px !important;
+            text-align: center !important;
+        }
+
+        #clock-time {
+            display: block !important;
+            font-size: 20px !important;
+            line-height: 1.15 !important;
+            white-space: nowrap !important;
+        }
+
+        #clock-date {
+            display: block !important;
+            font-size: 12px !important;
+            line-height: 1.25 !important;
+            white-space: nowrap !important;
+        }
+
+        .global-marquee-container {
+            min-height: 38px !important;
+            display: grid !important;
+            grid-template-columns: 46px minmax(0, 1fr) auto !important;
+            align-items: center !important;
+            overflow: hidden !important;
+        }
+
+        #thong-bao-chay {
+            min-width: 0 !important;
+            line-height: 1.25 !important;
+            padding: 4px 0 !important;
+        }
+
+        @media (max-width: 900px) {
+            .hospital-banner-global {
+                grid-template-columns: 1fr !important;
+                row-gap: 6px !important;
+            }
+
+            .banner-right {
+                justify-content: flex-start !important;
+            }
+
+            .banner-clock {
+                min-width: 0 !important;
+                text-align: left !important;
+            }
         }
     </style>
 </head>
