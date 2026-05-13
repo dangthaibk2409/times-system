@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 
 <head>
@@ -3482,7 +3482,139 @@
         </div>
     </div>
     <script>
+window.onerror = function(msg, url, lineNo, columnNo, error) { console.error('JS ERROR:', msg, 'at line', lineNo); alert('LỖI CÚ PHÁP TẠI DÒNG ' + lineNo + ': ' + msg); };
+console.log('MAIN SCRIPT STARTING...');
+// ============================================================
+// GITHUB PAGES API CONFIGURATION
+// ============================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbykwx2ubeJVp5Uy16OrHw9SMzHtKchiM0I7a-t3D_D45RJJ9G6EXrJtlL8Cl12ySdqndg/exec';
+
+window.google = window.google || {};
+window.google.script = window.google.script || {};
+window.google.script.run = new Proxy({}, {
+    get: function(target, prop) {
+        if (prop === 'withSuccessHandler') {
+            return function(successCallback) {
+                return new Proxy({}, {
+                    get: function(target2, prop2) {
+                        if (prop2 === 'withFailureHandler') {
+                            return function(errorCallback) {
+                                return new Proxy({}, {
+                                    get: function(target3, methodName) {
+                                        return function(...args) {
+                                            callApi(methodName, args, successCallback, errorCallback);
+                                        };
+                                    }
+                                });
+                            };
+                        }
+                        return function(...args) {
+                            callApi(prop2, args, successCallback, null);
+                        };
+                    }
+                });
+            };
+        }
+        if (prop === 'withFailureHandler') {
+            return function(errorCallback) {
+                return new Proxy({}, {
+                    get: function(target2, prop2) {
+                        if (prop2 === 'withSuccessHandler') {
+                            return function(successCallback) {
+                                return new Proxy({}, {
+                                    get: function(target3, methodName) {
+                                        return function(...args) {
+                                            callApi(methodName, args, successCallback, errorCallback);
+                                        };
+                                    }
+                                });
+                            };
+                        }
+                        return function(...args) {
+                            callApi(prop2, args, null, errorCallback);
+                        };
+                    }
+                });
+            };
+        }
+        return function(...args) {
+            callApi(prop, args, null, null);
+        };
+    }
+});
+
+function callApi(functionName, args, onSuccess, onError) {
+    fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            action: functionName,
+            args: JSON.stringify(args)
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            if (onSuccess) onSuccess(result.data);
+        } else {
+            console.error('API Error:', result.error);
+            if (onError) onError(result.error);
+            else alert('Lỗi: ' + result.error);
+        }
+    })
+    .catch(error => {
+        console.error('Fetch Error:', error);
+        if (onError) onError(error.toString());
+        else alert('Lỗi kết nối API: ' + error.toString());
+    });
+}
+
+
+// --- AUTH CODE MOVED TO TOP ---
+                                // ============================================================
+                                let adminAccCache = [];
+
+// --- Block Merged ---
+
+console.log('--- JS Block: Auth & Permissions started ---');
+                                window.doLogin = function() {
+                                const user = document.getElementById('login-user').value;
+                                const pass = document.getElementById('login-pass').value;
+                                const errDiv = document.getElementById('login-error');
+                                const btn = document.getElementById('btn-do-login');
+
+                                if (!user || !pass) { errDiv.innerText = "Vui lòng nhập đủ thông tin!";
+                                errDiv.style.display = "block"; return; }
+                                btn.innerText = "Đang kiểm tra..."; btn.disabled = true;
+
+                                google.script.run.withSuccessHandler(res => {
+                                if (res.success) {
+                                // 1. Lưu thông tin người dùng
+                                localStorage.setItem('meds_session', JSON.stringify({username: res.username, role:
+                                res.role, permissions: res.permissions}));
+
+                                // 🔥 2. Đặt thời gian hết hạn là 8 tiếng sau (8 * 60 * 60 * 1000 = 28,800,000 ms)
+                                localStorage.setItem('meds_session_exp', (Date.now() + 28800000).toString());
+
+                                document.getElementById('login-overlay').style.display = 'none';
+                                if (typeof updateLogoutButton === 'function') updateLogoutButton(res.username);
+                                if (typeof applyPermissions === 'function') applyPermissions(res.role, res.permissions);
+                                document.querySelector('.nav-tab[data-tab="tab-home"]')?.click();
+                                if (res.role === 'Admin' && typeof loadAccounts === 'function') loadAccounts();
+                                } else {
+                                errDiv.innerText = res.message; errDiv.style.display = "block";
+                                btn.innerText = "Đăng Nhập ➔"; btn.disabled = false;
+                                }
+                                }).verifyLogin(user, pass);
+                                }
+
+// ----------------------------
+
+// --- Block Merged ---
+
+console.log('--- JS Block: Main Logic started ---');
         // ============================================================
+console.log('--- JS Block: Foundation started ---');
         // 🔧 HELPER UTILITIES
         // ============================================================
 
@@ -5027,6 +5159,67 @@
             XLSX.writeFile(wb, `Lich_YLenh_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
 
+        function printSchedule() {
+            if (!filteredSchedData || filteredSchedData.length === 0) {
+                return alert("Không có dữ liệu để in! Bác sĩ hãy kiểm tra lại ô tìm kiếm.");
+            }
+
+            const dateInput = document.getElementById('schedule-date')?.value;
+            let displayDate = "......";
+            if (dateInput) {
+                displayDate = dateInput.split('-').reverse().join('/');
+            } else if (filteredSchedData[0] && filteredSchedData[0].ngay) {
+                displayDate = String(filteredSchedData[0].ngay).split('-').reverse().join('/');
+            }
+
+            const rows = filteredSchedData.map((row, i) => `<tr class="${row.__dropped ? 'print-dropped' : ''}">
+                <td>${i + 1}</td>
+                <td class="text-left nowrap"><strong>${row.tenBN}</strong></td>
+                <td>${row.namSinh}</td>
+                <td class="text-left">${row.thuThuat}</td>
+                <td class="nowrap"><strong>${row.gioDienRa}</strong></td>
+                <td class="nowrap"><strong>${row.gioKetThuc}</strong></td>
+                <td class="nowrap">${row.nvChinh}</td>
+                <td class="nowrap">${row.nvPhu}</td>
+                <td class="nowrap">${row.may}</td>
+            </tr>`).join('');
+
+            const printFrame = document.createElement('iframe');
+            printFrame.style.position = 'absolute';
+            printFrame.style.top = '-9999px';
+            document.body.appendChild(printFrame);
+            const doc = printFrame.contentWindow.document;
+
+            doc.open();
+            doc.write(`<html><head><title>In Lịch Y Lệnh</title>
+                <style>
+                    @page { size: landscape; margin: 10mm; }
+                    body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 0; margin: 0; }
+                    h2 { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
+                    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+                    th, td { border: 1px solid #000; padding: 10px 6px; text-align: center; vertical-align: middle; }
+                    th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; padding: 12px 6px; }
+                    .text-left { text-align: left; padding-left: 10px; }
+                    .nowrap { white-space: nowrap; }
+                    .print-dropped td { background: #ffd7ba !important; color: #9a3412 !important; font-weight: bold; -webkit-print-color-adjust: exact; }
+                </style>
+            </head><body>
+                <h2>LỊCH Y LỆNH NGÀY ${displayDate}</h2>
+                <table>
+                    <thead><tr>
+                        ${["STT", "Tên Bệnh Nhân", "Năm Sinh", "Thủ Thuật", "Bắt Đầu", "Kết Thúc", "NV Chính", "NV Phụ", "Máy"].map(h => `<th>${h}</th>`).join('')}
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </body></html>`);
+            doc.close();
+
+            setTimeout(() => {
+                printFrame.contentWindow.print();
+                document.body.removeChild(printFrame);
+            }, 500);
+        }
+
         function importScheduleFile() {
             const input = document.createElement('input');
             input.type = 'file';
@@ -5068,25 +5261,28 @@
                         rows.slice(headerIndex + 1).forEach(r => {
                             if (!r || !r.some(c => String(c).trim())) return;
                             const row = {
-                                ngay: idx.ngay >= 0 ? r[idx.ngay] : '',
-                                tenBN: idx.ten >= 0 ? r[idx.ten] : '',
-                                namSinh: idx.ns >= 0 ? r[idx.ns] : '',
-                                phong: idx.phong >= 0 ? r[idx.phong] : '',
-                                thuThuat: idx.tt >= 0 ? r[idx.tt] : '',
-                                gioDienRa: idx.bd >= 0 ? r[idx.bd] : '',
-                                gioKetThuc: idx.kt >= 0 ? r[idx.kt] : '',
-                                nvChinh: idx.nvChinh >= 0 ? r[idx.nvChinh] : '',
-                                nvPhu: idx.nvPhu >= 0 ? r[idx.nvPhu] : '',
-                                may: idx.may >= 0 ? r[idx.may] : '',
-                                giuong: idx.giuong >= 0 ? r[idx.giuong] : ''
+                                ngay: idx.ngay >= 0 ? r[idx.ngay] : "",
+                                tenBN: idx.ten >= 0 ? r[idx.ten] : "",
+                                namSinh: idx.ns >= 0 ? r[idx.ns] : "",
+                                phong: idx.phong >= 0 ? r[idx.phong] : "",
+                                thuThuat: idx.tt >= 0 ? r[idx.tt] : "",
+                                gioDienRa: idx.bd >= 0 ? r[idx.bd] : "",
+                                gioKetThuc: idx.kt >= 0 ? r[idx.kt] : "",
+                                nvChinh: idx.nvChinh >= 0 ? r[idx.nvChinh] : "",
+                                nvPhu: idx.nvPhu >= 0 ? r[idx.nvPhu] : "",
+                                may: idx.may >= 0 ? r[idx.may] : "",
+                                giuong: idx.giuong >= 0 ? r[idx.giuong] : ""
                             };
-                            const statusText = idx.status >= 0 ? String(r[idx.status] || '') : '';
+                            const statusText = idx.status >= 0 ? String(r[idx.status] || "") : "";
                             const statusLower = statusText.toLowerCase();
-                            const isDropped = String(row.gioDienRa || '').includes('Rớt') || statusLower.includes('không xếp') || statusLower.includes('rớt');
+                            const isDropped = String(row.gioDienRa || "").includes("Rớt") || statusLower.includes("không xếp") || statusLower.includes("rớt");
                             if (isDropped) {
+                                // Sử dụng chuỗi để tránh làm parser ngoặc nhầm lẫn
+                                const regLydo = new RegExp("^.*Lý do:\\s*", "i");
+                                const regEnd = new RegExp("[)]+$", "");
                                 dropped.push(normalizeDroppedItem({
                                     ngay: row.ngay, bn: row.tenBN, ns: row.namSinh, room: row.phong,
-                                    tt: row.thuThuat, staff: row.nvChinh, reason: statusText.replace(/^.*Lý do:\s*/i, '').replace(/\)+$/, '') || row.may || 'Ca rớt trong file cũ'
+                                    tt: row.thuThuat, staff: row.nvChinh, reason: statusText.replace(regLydo, "").replace(regEnd, "") || row.may || "Ca rớt trong file cũ"
                                 }));
                             } else {
                                 scheduled.push(row);
@@ -5097,433 +5293,55 @@
                         window.lastUnscheduledData = dropped;
                         window.currentRotData = dropped;
                         window.viewingImportedScheduleFile = true;
-                        const firstDate = scheduled[0]?.ngay || dropped[0]?.ngay || '';
-                        const dateInput = document.getElementById('schedule-date');
-                        if (dateInput && /^\d{2}\/\d{2}\/\d{4}$/.test(String(firstDate))) {
-                            const [d, m, y] = String(firstDate).split('/');
-                            dateInput.value = `${y}-${m}-${d}`;
-                        }
-                        const search = document.getElementById('schedule-search-input');
-                        if (search) search.value = '';
                         filterSchedule();
-                        if (typeof renderStats === 'function') renderStats(window.lastUnscheduledData);
-                        const res = document.getElementById('schedule-result');
-                        if (res) res.innerHTML = `<div class="alert alert-info" style="margin-top:6px;">Đang xem lại file <b>${file.name}</b>: <b>${scheduled.length}</b> ca đã xếp, <b>${dropped.length}</b> ca rớt. Dữ liệu này chỉ nạp để xem, không ghi đè lịch hiện tại trên hệ thống.</div>`;
                     } catch (err) {
-                        alert('Không đọc được file lịch cũ: ' + err.message);
+                        alert('Lỗi: ' + err.message);
                     }
                 };
                 reader.readAsArrayBuffer(file);
             };
             input.click();
         }
-        // ============================================================
-        // 🖨 NÂNG CẤP HÀM IN: TÙY CHỈNH TIÊU ĐỀ & RÚT GỌN 9 CỘT
-        // ============================================================
-        function printSchedule() {
-            if (!filteredSchedData || filteredSchedData.length === 0) {
-                return alert("Không có dữ liệu để in! Bác sĩ hãy kiểm tra lại ô tìm kiếm.");
-            }
 
-            // Lấy ngày đang chọn trên ô "Ngày xếp lịch" để in lên tiêu đề
-            const dateInput = document.getElementById('schedule-date')?.value;
-            let displayDate = "......";
-            if (dateInput) {
-                displayDate = dateInput.split('-').reverse().join('/'); // Chuyển YYYY-MM-DD sang DD/MM/YYYY
-            } else if (filteredSchedData[0] && filteredSchedData[0].ngay) {
-                // Dự phòng: Lấy ngày của bệnh nhân đầu tiên nếu không tìm thấy ô nhập ngày
-                displayDate = String(filteredSchedData[0].ngay).split('-').reverse().join('/');
-            }
 
-            // Nạp dữ liệu (Chỉ lấy đúng 9 cột Bác sĩ yêu cầu)
-            const rows = filteredSchedData.map((row, i) => `<tr class="${row.__dropped ? 'print-dropped' : ''}">
-        <td>${i + 1}</td>
-        <td class="text-left nowrap"><strong>${row.tenBN}</strong></td>
-        <td>${row.namSinh}</td>
-        <td class="text-left">${row.thuThuat}</td>
-        <td class="nowrap"><strong>${row.gioDienRa}</strong></td>
-        <td class="nowrap"><strong>${row.gioKetThuc}</strong></td>
-        <td class="nowrap">${row.nvChinh}</td>
-        <td class="nowrap">${row.nvPhu}</td>
-        <td class="nowrap">${row.may}</td>
-    </tr>`).join('');
-
-            const printFrame = document.createElement('iframe');
-            printFrame.style.position = 'absolute'; printFrame.style.top = '-9999px';
-            document.body.appendChild(printFrame);
-            const doc = printFrame.contentWindow.document;
-
-            doc.open();
-            doc.write(`<html><head><title>In Lịch Y Lệnh</title>
-        <style>
-            /* Ép máy in xoay ngang giấy và căn lề gọn gàng */
-            @page { size: landscape; margin: 10mm; } 
-            body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 0; margin: 0; }
-            h2 { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
-            
-            /* Tăng kích thước chữ lên 13.5px do đã bớt cột, nhìn sẽ rất rõ ràng */
-            table { width: 100%; border-collapse: collapse; font-size: 13.5px; } 
-            th, td { border: 1px solid #000; padding: 10px 6px; text-align: center; vertical-align: middle; }
-            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; padding: 12px 6px; }
-            
-            /* Căn lề trái và chống bẻ chữ */
-            .text-left { text-align: left; padding-left: 10px; }
-            .nowrap { white-space: nowrap; } 
-            .print-dropped td { background: #ffd7ba !important; color: #9a3412 !important; font-weight: bold; -webkit-print-color-adjust: exact; }
-        </style>
-    </head><body>
-        <h2>LỊCH Y LỆNH NGÀY ${displayDate}</h2>
-        <table>
-            <thead><tr>
-                ${["STT", "Tên Bệnh Nhân", "Năm Sinh", "Thủ Thuật", "Bắt Đầu", "Kết Thúc", "NV Chính", "NV Phụ", "Máy"].map(h => `<th>${h}</th>`).join('')}
-            </tr></thead>
-            <tbody>${rows}</tbody>
-        </table>
-    </body></html>`);
-    doc.close();
-    setTimeout(() => { printFrame.contentWindow.print(); document.body.removeChild(printFrame); }, 500);
-}
-</script>
-<script>
-// ============================================================
-// 🌐 GITHUB PAGES API CONFIGURATION & HASH ROUTING
-// ============================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbykwx2ubeJVp5Uy16OrHw9SMzHtKchiM0I7a-t3D_D45RJJ9G6EXrJtlL8Cl12ySdqndg/exec';
-
-// MÔ PHỎNG google.script.run bằng fetch()
-window.google = window.google || {};
-window.google.script = window.google.script || {};
-window.google.script.run = new Proxy({}, {
-    get: function(target, prop) {
-        if (prop === 'withSuccessHandler') {
-            return function(successCallback) {
-                return new Proxy({}, {
-                    get: function(target2, prop2) {
-                        if (prop2 === 'withFailureHandler') {
-                            return function(errorCallback) {
-                                return function(...args) {
-                                    callApi(prop, args, successCallback, errorCallback);
-                                }
-                            }
-                        }
-                        return function(...args) {
-                            callApi(prop2, args, successCallback, null);
-                        }
-                    }
-                });
-            }
-        } else if (prop === 'withFailureHandler') {
-            return function(errorCallback) {
-                return new Proxy({}, {
-                    get: function(target2, prop2) {
-                        if (prop2 === 'withSuccessHandler') {
-                            return function(successCallback) {
-                                return function(...args) {
-                                    callApi(prop, args, successCallback, errorCallback);
-                                }
-                            }
-                        }
-                        return function(...args) {
-                            callApi(prop2, args, null, errorCallback);
-                        }
-                    }
-                });
-            }
-        }
-        return function(...args) {
-            callApi(prop, args, null, null);
-        }
-    }
-});
-
-function callApi(functionName, args, onSuccess, onError) {
-    if (API_URL === 'VUI_LONG_THAY_THE_BANG_LINK_WEB_APP_CUA_BAN') {
-        console.warn(`Đang gọi hàm ${ functionName } nhưng chưa có API_URL thực tế.`);
-        if (onError) onError('API_URL chưa được cấu hình. Vui lòng deploy code.gs và dán link vào API_URL.');
-        return;
-    }
-    
-    // Show loading indicator if needed
-    
-    fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            action: functionName,
-            args: JSON.stringify(args)
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === 'success') {
-            if (onSuccess) onSuccess(result.data);
-        } else {
-            console.error('API Error:', result.error);
-            if (onError) onError(result.error);
-            else alert('Lỗi: ' + result.error);
-        }
-    })
-    .catch(error => {
-        console.error('Fetch Error:', error);
-        if (onError) onError(error.toString());
-        else alert('Lỗi kết nối API: ' + error.toString());
-    });
-}
-
-// -----------------------------------------------------------
-// 📌 HASH ROUTING LOGIC
-// -----------------------------------------------------------
-document.addEventListener('DOMContentLoaded', function() {
-    // Override logic chuyển tab cũ
-    const tabs = document.querySelectorAll('.nav-tab, .nav-item');
-    
-    // 1. Lắng nghe Hash Change
-    window.addEventListener('hashchange', handleHashChange);
-    
-    // 2. Chạy lần đầu khi load trang
-    if (window.location.hash) {
-        handleHashChange();
-    } else {
-        // Mặc định mở tab-home
-        window.location.hash = '#tab-home';
-    }
-    
-    // 3. Sửa lại event click của các tab để chỉ đổi hash
-    tabs.forEach(tab => {
-        // Bỏ event click cũ bằng cách clone node nếu cần, nhưng tốt nhất là ngăn chặn hành vi mặc định
-        tab.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation(); // Ngăn event cũ (đã gán trước đó) chạy
-            const targetTab = tab.getAttribute('data-tab');
-            window.location.hash = '#' + targetTab;
-        }, true); // Use capture phase to intercept
-    });
-    
-    function handleHashChange() {
-        let hash = window.location.hash;
-        if (!hash) hash = '#tab-home';
-        
-        let targetTab = hash.substring(1); // Xóa dấu #
-        
-        // Cập nhật giao diện
-        tabs.forEach(t => t.classList.remove('active'));
-        let activeBtn = document.querySelector(`[data - tab= "${targetTab}"]`);
-        if (activeBtn) activeBtn.classList.add('active');
-        
-        document.querySelectorAll('.tab-content, .page').forEach(c => c.classList.remove('active'));
-        let targetEl = document.getElementById(targetTab);
-        if (targetEl) targetEl.classList.add('active');
-        
-        // Điều chỉnh class body như logic cũ
-        document.body.classList.toggle('tab-sat-active', targetTab === 'tab-sat');
-        document.body.classList.toggle('tab-schedule-active', targetTab === 'tab-schedule');
-        
-        // Kích hoạt load dữ liệu riêng
-        if (targetTab === 'tab-sat' && typeof satCache !== 'undefined' && Object.keys(satCache).length === 0) {
-            if (typeof taiDsSat === 'function') taiDsSat();
-        }
-        if (targetTab === 'tab-home' || targetTab === 'page-dashboard') {
-            if (typeof loadDashboard === 'function') loadDashboard();
-        }
-        if (targetTab === 'tab-schedule') {
-            if (typeof schedCurrentPage !== 'undefined') schedCurrentPage = 1;
-            if (typeof loadScheduleList === 'function') loadScheduleList();
-        }
-        if (targetTab === 'tab-stats' && typeof renderStats === 'function') {
-            renderStats(window.lastUnscheduledData);
-        }
-    }
-});
-    </script>
-</body>
-
-</html>`);
-doc.close();
-
-setTimeout(() => { printFrame.contentWindow.print(); document.body.removeChild(printFrame); }, 500);
-}
-// ============================================================
-// 🔒 CHỐT SỔ & LỊCH SỬ
-// ============================================================
-function callChotSo() {
-showCustomConfirm("Chốt sổ hôm nay?",
-"Hệ thống sẽ lưu lịch sử các bệnh nhân đã ra viện và dọn dẹp danh sách cho ngày mới.\n\nBạn có chắc chắn chốt sổ hôm
-nay?",
-function() {
-const btn = document.getElementById('btn-chot-so');
-btn.innerText = '⏳ ĐANG XỬ LÝ...'; btn.disabled = true; btn.style.background = '#f39c12';
-google.script.run
-.withSuccessHandler(res => {
-if (typeof showThongBao === 'function') showThongBao("CHỐT SỔ THÀNH CÔNG", res, "success");
-document.getElementById('schedule-search-input').value = '';
-localStorage.removeItem('meds_unscheduled');
-localStorage.removeItem('meds_success');
-window.currentScheduleData = [];
-window.lastUnscheduledData = [];
-window.currentRotData = [];
-document.getElementById('schedule-result').innerHTML = '';
-filterSchedule();
-if (typeof loadAllData === 'function') loadAllData();
-btn.innerText = 'CHỐT SỔ & SANG NGÀY MỚI'; btn.disabled = false; btn.style.background = '#8e44ad';
-['stat-success','stat-fail'].forEach(id => { const el = document.getElementById(id); if(el) el.innerText = '0'; });
-const rateEl = document.getElementById('stat-rate'); if(rateEl) rateEl.innerText = '0%';
-['stats-unscheduled-list','stats-staff-list'].forEach(id => {
-const el = document.getElementById(id);
-const colspan = id.includes('unscheduled') ? 5 : 4;
-if(el) el.innerHTML = `<tr>
-    <td colspan="${colspan}" align="center" style="padding:20px;">Vui lòng chạy Xếp lịch tổng để xem dữ liệu</td>
-</tr>`;
-});
-if (typeof loadDashboard === 'function') loadDashboard();
-})
-.withFailureHandler(err => {
-if (typeof showThongBao === 'function') showThongBao("LỖI CHỐT SỔ", "Có lỗi xảy ra: " + err.message, "error");
-btn.innerText = 'CHỐT SỔ & SANG NGÀY MỚI'; btn.disabled = false; btn.style.background = '#8e44ad';
-})
-.chuyenNgayMoi();
-}
-);
-}
-function xemLichSu() {
-window.viewingImportedScheduleFile = false;
-const d = document.getElementById('history-date').value;
-if (!d) return alert("Vui lòng chọn một ngày để xem lịch sử!");
-const res = document.getElementById('schedule-result');
-const list = document.getElementById('schedule-list');
-list.innerHTML = '<tr>
-    <td colspan="12" align="center">
-        <div class="spinner"></div> Đang tải dữ liệu lịch sử...
-    </td>
-</tr>';
-res.innerHTML = '';
-google.script.run
-.withSuccessHandler(data => {
-if (!data?.length) {
-list.innerHTML = '<tr>
-    <td colspan="12" align="center" style="color:red; font-weight:bold;">Không có dữ liệu lịch sử cho ngày này.</td>
-</tr>';
-res.innerHTML = `<div class="alert alert-warning">Không tìm thấy lịch sử cho ngày <b>${d}</b>.</div>`;
-window.currentScheduleData = []; window.lastUnscheduledData = []; window.currentRotData = []; return;
-}
-window.currentScheduleData = data;
-document.getElementById('schedule-search-input').value = '';
-filterSchedule(); renderStats();
-res.innerHTML = `<div class="alert alert-info" style="border-left-color:#8e44ad; background:#f5eef8;">Đang xem lịch sử
-    ngày <b>${d}</b>. Đã tải <b>${data.length}</b> ca.</div>`;
-})
-.withFailureHandler(err => { alert("Lỗi tải lịch sử: " + err.message); list.innerHTML = '<tr>
-    <td colspan="12" align="center">Lỗi tải dữ liệu.</td>
-</tr>'; })
-.getHistorySchedule(d);
-}
-
-// ============================================================
-// 🔍 TÌM RẢNH
-// ============================================================
-// ============================================================
-// 🛠 TÌM KIẾM RẢNH (TAB TIỆN ÍCH)
-// ============================================================
-window.externalUtilsData = null;
-
-document.addEventListener('DOMContentLoaded', function() {
-const fileUtils = document.getElementById('file-utils-data');
-if (fileUtils) {
-fileUtils.addEventListener('change', function(e) {
-const file = e.target.files[0];
-const statusEl = document.getElementById('utils-file-status');
-if (!file) {
-window.externalUtilsData = null;
-statusEl.innerText = "(Đang dùng: Lịch phần mềm xếp)";
-statusEl.style.color = "#e67e22";
-return;
-}
-
-statusEl.innerText = "⏳ Đang đọc file...";
-statusEl.style.color = "#f39c12";
-
-const reader = new FileReader();
-reader.onload = function(e) {
-try {
-const data = new Uint8Array(e.target.result);
-const wb = XLSX.read(data, {type: 'array', cellDates: true});
-const ws = wb.Sheets[wb.SheetNames[0]];
-const jsonData = XLSX.utils.sheet_to_json(ws, {header: 1, raw: true, defval: ""});
-
-// Tìm header để map cột (Format: XUATDULIEU_FULL_...)
-let c_proc = -1, c_start = -1, c_end = -1, c_tech = -1, c_may = -1;
-for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; let rowStr=row.join(" ").toLowerCase();
-                        if (rowStr.includes(" hoten") && rowStr.includes("dichvu")) { for (let c=0; c < row.length;
-    c++) { let txt=String(row[c]).toLowerCase().trim(); if (txt==="dichvu" || txt==="thu thuat" ) c_proc=c; if
-    (txt==="giodienra" || txt==="gio bat dau" || txt==="bat dau" ) c_start=c; if (txt==="gioketthuc" || txt==="ket thuc"
-    ) c_end=c; if (txt==="nhanvien" || txt==="nv chinh" ) c_tech=c; if (txt==="may" ) c_may=c; } break; } } if
-    (c_proc===-1 || c_start===-1) { statusEl.innerText="❌ Lỗi: File không đúng cấu trúc (thiếu cột DICHVU, GIODIENRA)" ;
-    statusEl.style.color="#c0392b" ; window.externalUtilsData=null; return; } function parseExTime(val) { if (!val)
-    return "" ; // Nếu là đối tượng Date (do Excel tự parse Shortdate) if (val instanceof Date) { return
-    String(val.getHours()).padStart(2, '0' ) + ':' + String(val.getMinutes()).padStart(2, '0' ); } // Nếu là số thập
-    phân thời gian trong Excel (vd 0.58333 -> 14:00)
-    if (typeof val === 'number') {
-    if (val >= 0 && val < 1) { let tm=Math.round(val * 24 * 60); return String(Math.floor(tm / 60)).padStart(2, '0' )
-        + ':' + String(tm % 60).padStart(2, '0' ); } // Nếu số lớn (chuẩn ngày Excel) if (val> 1000) {
-        let d = new Date((val - 25569) * 86400 * 1000);
-        return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0');
-        }
-        }
-        // Nếu là chuỗi Shortdate (vd "07/05/2026 14:00") -> Rút trích giờ
-        if (typeof val === 'string') {
-        let match = val.match(/(\d{1,2}:\d{2})/);
-        return match ? match[1].padStart(5, '0') : val;
-        }
-        return String(val);
-        }
-
-        window.externalUtilsData = [];
-        for (let i = 1; i < jsonData.length; i++) { let row=jsonData[i]; if (!row || !row[c_start]) continue; let
-            sTime=parseExTime(row[c_start]); let eTime=parseExTime(row[c_end]); if (!sTime) continue; // Lọc tên nhân
-            viên: Đối chiếu thông minh với danh sách nhân sự hiện tại let techStr=String(row[c_tech] || ""
-            ).toLowerCase(); let staffs=window.dataCache?.staff || []; // Sắp xếp tên từ dài đến ngắn để match chính xác
-            nhất (tránh "KTV Hiền" đè "KTV Phan Hiền" ) let matchedDoc=staffs.slice().sort((a,b)=>b.ten.length -
-            a.ten.length).find(s => techStr.includes(s.ten.toLowerCase()));
-            let rawTech = matchedDoc ? matchedDoc.ten : String(row[c_tech] || "").split('(')[0].trim();
-
-            window.externalUtilsData.push({
-            thuThuat: row[c_proc] || "",
-            gioDienRa: sTime,
-            gioKetThuc: eTime,
-            nvChinh: rawTech,
-            nvPhu: "",
-            may: row[c_may] || ""
+        function callChotSo() {
+            showCustomConfirm("Chốt sổ?", "Bạn có chắc chắn muốn chốt sổ ngày hôm nay?", function() {
+                const btn = document.getElementById('btn-chot-so');
+                btn.innerText = '⏳ Đang xử lý...'; btn.disabled = true;
+                google.script.run.withSuccessHandler(res => {
+                    alert("Chốt sổ thành công!");
+                    location.reload();
+                }).withFailureHandler(err => { alert("Lỗi: " + err.message); btn.disabled = false; }).chuyenNgayMoi();
             });
-            }
+        }
 
-            statusEl.innerText = `⏳ Đang đồng bộ ${window.externalUtilsData.length} ca lên máy chủ (Sheet TimRanh)...`;
-            statusEl.style.color = "#f39c12";
+        function xemLichSu() {
+            const d = document.getElementById('history-date').value;
+            if (!d) return alert("Chọn ngày!");
+            google.script.run.withSuccessHandler(data => {
+                if (!data || !data.length) return alert("Không có dữ liệu");
+                window.currentScheduleData = data; filterSchedule();
+            }).getHistorySchedule(d);
+        }
 
-            google.script.run.withSuccessHandler(function() {
-            statusEl.innerText = `✅ Đã nạp & đồng bộ thành công ${window.externalUtilsData.length} ca lên máy chủ!`;
-            statusEl.style.color = "#27ae60";
-            }).withFailureHandler(function(err) {
-            statusEl.innerText = `⚠️ Nạp tạm thời ${window.externalUtilsData.length} ca (Lỗi đồng bộ: ${err.message})`;
-            statusEl.style.color = "#e67e22";
-            }).uploadTimRanhData(window.externalUtilsData);
-
-            } catch(err) {
-            statusEl.innerText = "❌ Lỗi đọc file: " + err.message;
-            statusEl.style.color = "#c0392b";
-            window.externalUtilsData = null;
-            }
+        // --- Tiện ích Tìm rảnh ---
+        window.externalUtilsData = null;
+        function handleUtilsFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const workbook = XLSX.read(new Uint8Array(ev.target.result), {type: 'array'});
+                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+                    window.externalUtilsData = jsonData.slice(1).map(r => ({ thuThuat: r[0], gioDienRa: r[1], gioKetThuc: r[2], nvChinh: r[3], nvPhu: '', may: r[4] }));
+                    alert("Đã nạp file thành công!");
+                } catch(err) { alert("Lỗi đọc file: " + err.message); }
             };
             reader.readAsArrayBuffer(file);
-            });
-            }
-            });
+        }
 
-            // Tự động tải dữ liệu dùng chung từ máy chủ khi mở web
-            function loadTimRanhDataFromServer() {
-            const statusEl = document.getElementById('utils-file-status');
-            if (statusEl) {
-            statusEl.innerText = "⏳ Đang kết nối máy chủ để lấy dữ liệu Tìm Rảnh chung...";
-            statusEl.style.color = "#f39c12";
-            }
+
             google.script.run.withSuccessHandler(function(data) {
             if (data && data.length > 0) {
             window.externalUtilsData = data;
@@ -5538,7 +5356,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
             }
             }
             }).getTimRanhData();
-            }
+
 
             // Chạy luôn hàm tải dữ liệu ngay khi mở web
             document.addEventListener('DOMContentLoaded', loadTimRanhDataFromServer);
@@ -5553,8 +5371,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
             if (!sourceData?.length) return alert("Vui lòng 'Chạy xếp lịch tổng' trước khi tìm theo bảng Lịch trình!");
             } else {
             sourceData = window.externalUtilsData;
-            if (!sourceData?.length) return alert("Chưa có dữ liệu từ sheet TimRanh hoặc file Excel. Vui lòng Nạp
-            file!");
+            if (!sourceData?.length) return alert("Chưa có dữ liệu từ sheet TimRanh hoặc file Excel. Vui lòng Nạp file!");
             }
             const t_vao = t2m(vao_str);
             const tbody = document.getElementById('free-doc-list');
@@ -5620,11 +5437,9 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                         </tr>`; found = true; } } }
                         });
                         });
-                        if (!found) tbody.innerHTML = '<tr>
-                            <td colspan="3" align="center" style="color:#c0392b; font-weight:bold;">Không có Nhân sự
+                        if (!found) tbody.innerHTML = `<tr> <td colspan="3" align="center" style="color:#c0392b; font-weight:bold;">Không có Nhân sự
                                 rảnh lúc này</td>
-                        </tr>';
-                        }
+                        </tr>`; }
                         function timMayRanh() {
                         const loai = document.getElementById('search-machine-type').value;
                         const gio_str = document.getElementById('search-machine-time').value;
@@ -5633,25 +5448,20 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                         let sourceData = [];
                         if (sourceMode === 'current') {
                         sourceData = window.currentScheduleData;
-                        if (!sourceData?.length) return alert("Vui lòng 'Chạy xếp lịch tổng' trước khi tìm theo bảng
-                        Lịch trình!");
+                        if (!sourceData?.length) return alert("Vui lòng 'Chạy xếp lịch tổng' trước khi tìm theo bảng Lịch trình!");
                         } else {
                         sourceData = window.externalUtilsData;
-                        if (!sourceData?.length) return alert("Chưa có dữ liệu từ sheet TimRanh hoặc file Excel. Vui
-                        lòng Nạp file!");
+                        if (!sourceData?.length) return alert("Chưa có dữ liệu từ sheet TimRanh hoặc file Excel. Vui lòng Nạp file!");
                         }
-                        if (!loai || loai.includes("Chọn loại") || !gio_str) return alert("Vui lòng chọn Loại máy và
-                        nhập Giờ!");
+                        if (!loai || loai.includes("Chọn loại") || !gio_str) return alert("Vui lòng chọn Loại máy và nhập Giờ!");
                         const t_vao = t2m(gio_str);
                         const tbody = document.getElementById('free-machine-list');
                         tbody.innerHTML = '';
                         const may_thuoc_loai = dataCache.machine.filter(m => m.tenLoai.trim() === loai.trim() &&
                         m.trangThai === 'Sẵn sàng').map(m => m.maMay);
-                        if (!may_thuoc_loai.length) { tbody.innerHTML = '<tr>
-                            <td colspan="2" align="center" style="color:#c0392b; font-weight:bold;">Máy đang hỏng/bảo
+                        if (!may_thuoc_loai.length) { tbody.innerHTML = `<tr> <td colspan="2" align="center" style="color:#c0392b; font-weight:bold;">Máy đang hỏng/bảo
                                 trì hết</td>
-                        </tr>'; return; }
-                        const m_busy = {};
+                        </tr>`; return; } const m_busy = {};
                         may_thuoc_loai.forEach(m => m_busy[m] = []);
                         sourceData.forEach(row => {
                         const rowMay = String(row.may || row[9] || '').trim().toLowerCase();
@@ -5681,11 +5491,9 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                             found = true;
                             }
                             });
-                            if (!found) tbody.innerHTML = '<tr>
-                                <td colspan="2" align="center" style="color:#c0392b; font-weight:bold;">Hết máy rảnh
+                            if (!found) tbody.innerHTML = `<tr> <td colspan="2" align="center" style="color:#c0392b; font-weight:bold;">Hết máy rảnh
                                 </td>
-                            </tr>';
-                            }
+                            </tr>`; }
 
                             // ============================================================
                             // 📅 TAB 7 - THỨ 7
@@ -5706,8 +5514,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                             const ten = s.ten;
                             t8_ns_vars[ten] = false; satStaffIndices[ten] = idx;
                             const fItem = document.createElement('div');
-                            fItem.style.cssText = 'margin-bottom:10px; border-bottom:1px solid #ecf0f1;
-                            padding-bottom:8px;';
+                            fItem.style.cssText = 'margin-bottom:10px; border-bottom:1px solid #ecf0f1; padding-bottom:8px;';
                             const cbLabel = document.createElement('label');
                             cbLabel.style.cssText = 'cursor:pointer; display:flex; align-items:center; gap:8px;';
                             const cbInput = document.createElement('input');
@@ -5753,27 +5560,23 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                             satCache[bn_id] = {info: r, items: [], frameId: `sat-bn-${bn_id}`};
                             const fBn = document.createElement('div');
                             fBn.id = `sat-bn-${bn_id}`;
-                            fBn.style.cssText = 'background:white; border:1px solid #bdc3c7; padding:5px 10px;
-                            margin-bottom:4px; border-radius:5px;';
+                            fBn.style.cssText = 'background:white; border:1px solid #bdc3c7; padding:5px 10px; margin-bottom:4px; border-radius:5px;';
                             const tDiv = document.createElement('div');
                             tDiv.innerHTML = `<b style="font-size:13px; color:#2c3e50;">${pIdx+1}.
                                 ${r.ten.toUpperCase()} (${r.namSinh})</b> <span
                                 style="font-size:11px; color:#e67e22; margin-left:10px;">Phòng: ${r.phong}</span>`;
-                            tDiv.style.cssText = 'border-bottom:1px dashed #ecf0f1; padding-bottom:2px;
-                            margin-bottom:2px;';
+                            tDiv.style.cssText = 'border-bottom:1px dashed #ecf0f1; padding-bottom:2px; margin-bottom:2px;';
                             fBn.appendChild(tDiv);
 
                             const flexContainer = document.createElement('div');
-                            flexContainer.style.cssText = 'display:flex; justify-content:space-between;
-                            align-items:center; margin-top:2px;';
+                            flexContainer.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-top:2px;';
                             const ttDiv = document.createElement('div');
                             ttDiv.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px;';
                             (r.thuThuat ? r.thuThuat.split(',').map(x => x.trim()).filter(x => x) : []).forEach((tt,
                             tIdx) => {
                             satCache[bn_id].items.push({name: tt, checked: false});
                             const cb = document.createElement('label');
-                            cb.style.cssText = 'font-size:12px; cursor:pointer; display:flex; align-items:center;
-                            gap:4px;'; cb.title = tt;
+                            cb.style.cssText = 'font-size:12px; cursor:pointer; display:flex; align-items:center; gap:4px;'; cb.title = tt;
                             const input = document.createElement('input');
                             input.type = 'checkbox'; input.id = `cb-sat-${bn_id}-${tIdx}`;
                             input.style.cssText = 'width:13px; height:13px; margin:0;';
@@ -5787,16 +5590,13 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                             });
 
                             const readyTimeDiv = document.createElement('div');
-                            readyTimeDiv.style.cssText = 'display:flex; align-items:center; gap:5px; background:#fdf2e9;
-                            padding:2px 5px; border-radius:4px; border:1px dashed #e67e22;';
+                            readyTimeDiv.style.cssText = 'display:flex; align-items:center; gap:5px; background:#fdf2e9; padding:2px 5px; border-radius:4px; border:1px dashed #e67e22;';
                             const readyLabel = document.createElement('label');
-                            readyLabel.innerText = '⏱ Giờ SS:'; readyLabel.style.cssText = 'font-size:11px;
-                            color:#d35400; font-weight:bold; margin:0;';
+                            readyLabel.innerText = '⏱ Giờ SS:'; readyLabel.style.cssText = 'font-size:11px; color:#d35400; font-weight:bold; margin:0;';
                             const readyInput = document.createElement('input');
                             readyInput.type = 'time'; readyInput.value = '07:30'; readyInput.className =
                             'input-ready-time';
-                            readyInput.style.cssText = 'padding:1px 3px; border:1px solid #ccc; border-radius:3px;
-                            font-size:12px; outline:none; cursor:pointer; color:#95a5a6; background:#f8f9fa;';
+                            readyInput.style.cssText = 'padding:1px 3px; border:1px solid #ccc; border-radius:3px; font-size:12px; outline:none; cursor:pointer; color:#95a5a6; background:#f8f9fa;';
                             readyInput.onchange = function() { this.style.color = '#c0392b'; this.style.fontWeight =
                             'bold'; this.style.backgroundColor = '#fff'; this.style.borderColor = '#c0392b'; };
                             readyTimeDiv.append(readyLabel, readyInput);
@@ -5813,8 +5613,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                             counts[item.name] = (counts[item.name]||0)+1; });
                             const sumDiv = document.getElementById('sat-summary');
                             const total = Object.values(counts).reduce((a,b)=>a+b,0);
-                            if (!total) { sumDiv.innerHTML = '<div
-                                style="color:gray; text-align:center; margin-top:20px;">Chưa chọn thủ thuật nào.</div>';
+                            if (!total) { sumDiv.innerHTML = '<div style="color:gray; text-align:center; margin-top:20px;">Chưa chọn thủ thuật nào.</div>';
                             return; }
                             let html = `<div
                                 style="background:#2c3e50; color:white; padding:8px; border-radius:4px; margin-bottom:10px; display:flex; justify-content:space-between;">
@@ -6012,8 +5811,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                             if (typeof renderPatientsTable === 'function') renderPatientsTable();
                             if (typeof loadDashboard === 'function') loadDashboard();
                             })
-                            .withFailureHandler(err => { alert("Lỗi: " + err.message); btn.innerText = '▶ XẾP LỊCH THỨ
-                            7'; btn.disabled = false; })
+                            .withFailureHandler(err => { alert("Lỗi: " + err.message); btn.innerText = '▶ XẾP LỊCH THỨ 7'; btn.disabled = false; })
                             .runSaturdaySchedule(payload, dateVal);
                             }
                             function updateSatDefaultTime() {
@@ -6034,8 +5832,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                             // ============================================================
                             function exportPatients() {
                             if (!dataCache.pat.length) return alert("Không có dữ liệu bệnh nhân để xuất!");
-                            const ws_data = [["STT","Tên BN","Năm Sinh","Ngày Vào","Giờ Vào","Giờ Bận","Giờ
-                            Ra","Phòng","Thủ Thuật"],
+                            const ws_data = [["STT","Tên BN","Năm Sinh","Ngày Vào","Giờ Vào","Giờ Bận","Giờ Ra","Phòng","Thủ Thuật"],
                             ...dataCache.pat.map((p, i) => [i+1, p.ten, p.namSinh, p.ngayVao, p.gioVao, p.gioBan,
                             p.gioRa, p.phong, p.thuThuat])];
                             const wb = XLSX.utils.book_new();
@@ -6057,12 +5854,10 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                 ten: r[1], namSinh: r[2]||'', ngayVao: r[3]||'', gioVao: r[4]||'',
                                 gioBan: r[5]||'', gioRa: r[6]||'', phong: r[7]||'', thuThuat: r[8]||''
                                 }));
-                                const replaceAll = confirm("Bác sĩ có muốn THAY THẾ TOÀN BỘ danh sách hiện tại
-                                không?\n\n- OK: Xóa sạch, nạp mới.\n- Cancel: Bổ sung thêm.");
+                                const replaceAll = confirm("Bác sĩ có muốn THAY THẾ TOÀN BỘ danh sách hiện tại không?\n\n- OK: Xóa sạch, nạp mới.\n- Cancel: Bổ sung thêm.");
                                 const btn = document.getElementById('btn-import-pat');
                                 btn.innerText = "⏳ Đang xử lý..."; btn.disabled = true;
-                                google.script.run.withSuccessHandler(res => { alert(res); btn.innerText = "⬇️ Nhập từ
-                                Excel"; btn.disabled = false; loadPatients(); }).bulkUpdatePatients(patientList,
+                                google.script.run.withSuccessHandler(res => { alert(res); btn.innerText = "⬇️ Nhập từ Excel"; btn.disabled = false; loadPatients(); }).bulkUpdatePatients(patientList,
                                 replaceAll);
                                 };
                                 reader.readAsArrayBuffer(e.target.files[0]);
@@ -6072,38 +5867,6 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
 
                                 // ============================================================
                                 // 🔐 ĐĂNG NHẬP / PHÂN QUYỀN
-                                // ============================================================
-                                let adminAccCache = [];
-                                function doLogin() {
-                                const user = document.getElementById('login-user').value;
-                                const pass = document.getElementById('login-pass').value;
-                                const errDiv = document.getElementById('login-error');
-                                const btn = document.getElementById('btn-do-login');
-
-                                if (!user || !pass) { errDiv.innerText = "Vui lòng nhập đủ thông tin!";
-                                errDiv.style.display = "block"; return; }
-                                btn.innerText = "Đang kiểm tra..."; btn.disabled = true;
-
-                                google.script.run.withSuccessHandler(res => {
-                                if (res.success) {
-                                // 1. Lưu thông tin người dùng
-                                localStorage.setItem('meds_session', JSON.stringify({username: res.username, role:
-                                res.role, permissions: res.permissions}));
-
-                                // 🔥 2. Đặt thời gian hết hạn là 8 tiếng sau (8 * 60 * 60 * 1000 = 28,800,000 ms)
-                                localStorage.setItem('meds_session_exp', (Date.now() + 28800000).toString());
-
-                                document.getElementById('login-overlay').style.display = 'none';
-                                if (typeof updateLogoutButton === 'function') updateLogoutButton(res.username);
-                                if (typeof applyPermissions === 'function') applyPermissions(res.role, res.permissions);
-                                document.querySelector('.nav-tab[data-tab="tab-home"]')?.click();
-                                if (res.role === 'Admin' && typeof loadAccounts === 'function') loadAccounts();
-                                } else {
-                                errDiv.innerText = res.message; errDiv.style.display = "block";
-                                btn.innerText = "Đăng Nhập ➔"; btn.disabled = false;
-                                }
-                                }).verifyLogin(user, pass);
-                                }
                                 function updateLogoutButton(username) {
                                 const btn = document.getElementById('nav-btn-logout');
                                 if (btn) { btn.innerHTML = `👤 ${username} <span
@@ -6144,12 +5907,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                 google.script.run.withSuccessHandler(data => {
                                 adminAccCache = data;
                                 const tbody = document.getElementById('acc-list');
-                                const PERM_MAP = {'tab-patients':'🛌 Bệnh Nhân','tab-schedule':'⚡ Xếp
-                                Lịch','tab-sat':'📅 Thứ 7','tab-busy':'⏱ Giờ Bận','tab-stats':'📊 Thống
-                                Kê','tab-utils':'🛠 Tiện Ích','tab-machines':'⚙️ Máy Móc','tab-procedures':'💉 Thủ
-                                Thuật','tab-rooms':'🏥 Phòng','tab-staff':'👨‍⚕️ Nhân Sự'};
-
-                                tbody.innerHTML = data.map((acc, i) => {
+                                const PERM_MAP = {'tab-patients':'🛌 Bệnh Nhân','tab-schedule':'⚡ Xếp Lịch','tab-sat':'📅 Thứ 7','tab-busy':'⏱ Giờ Bận','tab-stats':'📊 Thống Kê','tab-utils':'🛠 Tiện Ích','tab-machines':'⚙️ Máy Móc','tab-procedures':'💉 Thủ Thuật','tab-rooms':'🏥 Phòng','tab-staff':'👨‍⚕️ Nhân Sự'};                                 tbody.innerHTML = data.map((acc, i) => {
                                 let tenQuyen = "👑 Toàn quyền (Admin)";
                                 if (acc.perms !== 'ALL') tenQuyen = acc.perms.split(',').map(p => PERM_MAP[p.trim()] ||
                                 p.trim()).join(', ');
@@ -6198,8 +5956,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
 
                                 if (!user) return showCustomAlert("Lưu ý", "Vui lòng nhập tên tài khoản!");
                                 // 🔥 ĐÃ SỬA: Chỉ bắt buộc nhập mật khẩu nếu là tài khoản tạo mới (không có ID)
-                                if (!id && !pass) return showCustomAlert("Lưu ý", "Vui lòng nhập mật khẩu cho tài khoản
-                                mới!");
+                                if (!id && !pass) return showCustomAlert("Lưu ý", "Vui lòng nhập mật khẩu cho tài khoản mới!");
 
                                 const perms = role === 'User' ?
                                 Array.from(document.querySelectorAll('.perm-cb:checked')).map(cb => cb.value).join(', ')
@@ -6226,8 +5983,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                 document.getElementById('btn-save-acc').innerText = "Lưu Tài Khoản";
                                 }
                                 function deleteAccount(id, user) {
-                                if (user.toLowerCase() === 'admin') return showCustomAlert("Cảnh báo bảo mật", "Không
-                                được phép xóa tài khoản Admin gốc!");
+                                if (user.toLowerCase() === 'admin') return showCustomAlert("Cảnh báo bảo mật", "Không được phép xóa tài khoản Admin gốc!");
                                 showCustomConfirm("Xóa tài khoản", `Bác sĩ có chắc chắn muốn xóa vĩnh viễn tài khoản [
                                 ${user} ] không?`, function() {
                                 google.script.run.withSuccessHandler(() => loadAccounts()).deleteAccount(id);
@@ -6276,10 +6032,8 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                 const marqueeTag = document.getElementById('thong-bao-chay');
                                 if (marqueeTag) marqueeTag.innerText = noiDungMoi;
                                 google.script.run
-                                .withSuccessHandler(() => { btn.innerText = textGoc; btn.disabled = false; alert("✅ Đã
-                                lưu thông báo mới thành công!"); })
-                                .withFailureHandler(err => { btn.innerText = textGoc; btn.disabled = false; alert("❌ Lỗi
-                                khi lưu: " + err.message); })
+                                .withSuccessHandler(() => { btn.innerText = textGoc; btn.disabled = false; alert("✅ Đã lưu thông báo mới thành công!"); })
+                                .withFailureHandler(err => { btn.innerText = textGoc; btn.disabled = false; alert("❌ Lỗi khi lưu: " + err.message); })
                                 .luuThongBaoDongChuChay(noiDungMoi);
                                 }
 
@@ -6303,8 +6057,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                 let workbook;
                                 try { workbook = XLSX.read(new Uint8Array(e.target.result), {type:'array'}); }
                                 catch(err) { throw new Error("Cấu trúc file bị hỏng hoặc không đúng chuẩn."); }
-                                if (!workbook?.SheetNames?.length) { logHL("❌ LỖI ĐỊNH DẠNG: File bị hỏng. Hãy mở bằng
-                                Excel và Save As lại nhé."); event.target.value=""; return; }
+                                if (!workbook?.SheetNames?.length) { logHL("❌ LỖI ĐỊNH DẠNG: File bị hỏng. Hãy mở bằng Excel và Save As lại nhé."); event.target.value=""; return; }
 
                                 function bocTachGioExcel(cellVal) {
                                 if (cellVal === undefined || cellVal === null || cellVal === '') return null;
@@ -6368,8 +6121,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                                 google.script.run.withSuccessHandler(res => { logHL("✅ " + res);
                                                 loadHLData(); }).withFailureHandler(err => logHL("❌ Lỗi lưu: " +
                                                 err.message)).saveAITrainingData(records);
-                                                } else logHL("❌ Không tìm thấy dữ liệu giờ giấc hợp lệ trong bất kỳ
-                                                Sheet nào của file!");
+                                                } else logHL("❌ Không tìm thấy dữ liệu giờ giấc hợp lệ trong bất kỳ Sheet nào của file!");
                                                 } catch(err) { logHL("❌ Lỗi kỹ thuật: " + err.message); }
                                                 event.target.value = "";
                                                 };
@@ -6378,16 +6130,12 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                                 function loadHLData() {
                                                 const tbody = document.querySelector('#hl-table tbody');
                                                 if (!tbody) return;
-                                                tbody.innerHTML = '<tr>
-                                                    <td colspan="5" style="text-align:center;">⏳ Đang tải dữ liệu...
+                                                tbody.innerHTML = `<tr> <td colspan="5" style="text-align:center;">⏳ Đang tải dữ liệu...
                                                     </td>
-                                                </tr>';
-                                                google.script.run.withSuccessHandler(data => {
-                                                if (!data?.length) { tbody.innerHTML = '<tr>
-                                                    <td colspan="5" style="text-align:center; color:gray">Kho dữ liệu
+                                                </tr>`; google.script.run.withSuccessHandler(data => {
+                                                if (!data?.length) { tbody.innerHTML = `<tr> <td colspan="5" style="text-align:center; color:gray">Kho dữ liệu
                                                         hiện đang trống.</td>
-                                                </tr>'; return; }
-                                                tbody.innerHTML = data.slice(0, 100).map(row => `<tr>
+                                                </tr>`; return; } tbody.innerHTML = data.slice(0, 100).map(row => `<tr>
                                                     <td>${row[0]}</td>
                                                     <td style="font-weight:bold; color:#2c3e50;">${row[2]}</td>
                                                     <td>${row[3]}</td>
@@ -6398,8 +6146,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                                 }).getAITrainingData();
                                                 }
                                                 function clearHLData() {
-                                                if (!confirm("⚠️ Bác sĩ có chắc chắn muốn xóa TOÀN BỘ dữ liệu huấn luyện
-                                                AI? Hành động này không thể hoàn tác!")) return;
+                                                if (!confirm("⚠️ Bác sĩ có chắc chắn muốn xóa TOÀN BỘ dữ liệu huấn luyện AI? Hành động này không thể hoàn tác!")) return;
                                                 logHL("🗑 Đang tiến hành xóa kho dữ liệu...");
                                                 google.script.run.withSuccessHandler(res => { logHL("✅ " + res);
                                                 loadHLData(); }).clearAITrainingData();
@@ -6408,19 +6155,13 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                                 logHL("⏳ Đang tạo Siêu lệnh (Mega-Prompt)...");
                                                 google.script.run.withSuccessHandler(data => {
                                                 if (!data?.length) return alert("Chưa có dữ liệu huấn luyện nào!");
-                                                let promptText = "Bạn là Chuyên gia Khoa học Dữ liệu và Quản lý Y
-                                                tế.\n";
-                                                promptText += "Nhiệm vụ của bạn là tối ưu hóa thuật toán xếp lịch thủ
-                                                thuật cho Khoa Y học Cổ truyền - Phục hồi Chức năng.\n\n";
-                                                promptText += "BƯỚC 1: Phân tích dữ liệu ca y lệnh dưới đây để tìm quy
-                                                luật (Nhịp điệu, thời gian thực tế, transition time...).\n";
-                                                promptText += "BƯỚC 2: Tôi sẽ cung cấp code Javascript ở tin nhắn tiếp
-                                                theo.\n";
-                                                promptText += "BƯỚC 3: Viết lại thuật toán xếp lịch để cân bằng
-                                                tải.\n\n";
+                                                let promptText = "Bạn là Chuyên gia Khoa học Dữ liệu và Quản lý Y tế.\n";
+                                                promptText += "Nhiệm vụ của bạn là tối ưu hóa thuật toán xếp lịch thủ thuật cho Khoa Y học Cổ truyền - Phục hồi Chức năng.\n\n";
+                                                promptText += "BƯỚC 1: Phân tích dữ liệu ca y lệnh dưới đây để tìm quy luật (Nhịp điệu, thời gian thực tế, transition time...).\n";
+                                                promptText += "BƯỚC 2: Tôi sẽ cung cấp code Javascript ở tin nhắn tiếp theo.\n";
+                                                promptText += "BƯỚC 3: Viết lại thuật toán xếp lịch để cân bằng tải.\n\n";
                                                 promptText += "=== KHO DỮ LIỆU HUẤN LUYỆN ===\n";
-                                                promptText += "Ngày | File Nguồn | Nhân Viên | Thủ Thuật | Phút Bắt Đầu
-                                                | Phút Kết Thúc | Thực Tế (phút) | Khoảng Cách 7h (phút)\n";
+                                                promptText += "Ngày | File Nguồn | Nhân Viên | Thủ Thuật | Phút Bắt Đầu | Phút Kết Thúc | Thực Tế (phút) | Khoảng Cách 7h (phút)\n";
                                                 data.forEach(row => { promptText += `${row.join(' | ')}\n`; });
                                                 const blob = new Blob([promptText], {type:'text/plain;charset=utf-8'});
                                                 const url = URL.createObjectURL(blob);
@@ -6492,8 +6233,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                                 const rotDataSheets = duLieuTrongNgay.filter(item => { const g =
                                                 item.gioDienRa||item[5]||''; return g==='--'||g.includes('Rớt');
                                                 }).map(item => [item.ngay||item[0], item.tenBN||item[1],
-                                                item.namSinh||item[2], item.phong||item[3], item.thuThuat||item[4], '❌
-                                                Rớt', '--', '--', '--', '--', '--', 'Thiếu nhân sự/Máy']);
+                                                item.namSinh||item[2], item.phong||item[3], item.thuThuat||item[4], '❌ Rớt', '--', '--', '--', '--', '--', 'Thiếu nhân sự/Máy']);
                                                 let rotDataLocal = [];
                                                 try {
                                                 const savedDate = localStorage.getItem('meds_schedule_date');
@@ -6518,14 +6258,11 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
 
                                                 const el = document.getElementById('todaySchedulePreview');
                                                 if (!homeFilteredData.length) {
-                                                el.innerHTML = '<div
-                                                    style="padding:40px; text-align:center; color:#999;">📅 Chưa có lịch
-                                                    trình hôm nay</div>';
-                                                return;
+                                                el.innerHTML = `<div style="padding:40px; text-align:center; color:#999;">📅 Chưa có lịch
+                                                    trình hôm nay</div>`; return;
                                                 }
 
-                                                const headers = ["STT","Tên Bệnh Nhân","Phòng","Thủ Thuật","Bắt
-                                                Đầu","Kết Thúc","NV Chính","Máy"];
+                                                const headers = ["STT","Tên Bệnh Nhân","Phòng","Thủ Thuật","Bắt Đầu","Kết Thúc","NV Chính","Máy"];
                                                 el.innerHTML = `
                                                 <table class="table">
                                                     <thead>
@@ -6619,8 +6356,7 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                                 // ============================================================
                                                 function updateClock() {
                                                 const now = new Date();
-                                                const days = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ
-                                                Sáu','Thứ Bảy'];
+                                                const days = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
                                                 const pad = n => String(n).padStart(2,'0');
                                                 document.getElementById('clock-time').textContent =
                                                 `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
@@ -6671,94 +6407,8 @@ for (let i = 0; i < Math.min(10, jsonData.length); i++) { let row=jsonData[i]; l
                                                 event.preventDefault(); successModal.style.display = 'none'; }
                                                 }
                                                 });
-                                                </script>
-
-
-                                                <script>
-// ============================================================
-// 🌐 GITHUB PAGES API CONFIGURATION & HASH ROUTING
-// ============================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbykwx2ubeJVp5Uy16OrHw9SMzHtKchiM0I7a-t3D_D45RJJ9G6EXrJtlL8Cl12ySdqndg/exec';
-
-// MÔ PHỎNG google.script.run bằng fetch()
-window.google = window.google || {};
-window.google.script = window.google.script || {};
-window.google.script.run = new Proxy({}, {
-    get: function(target, prop) {
-        if (prop === 'withSuccessHandler') {
-            return function(successCallback) {
-                return new Proxy({}, {
-                    get: function(target2, prop2) {
-                        if (prop2 === 'withFailureHandler') {
-                            return function(errorCallback) {
-                                return function(...args) {
-                                    callApi(prop, args, successCallback, errorCallback);
-                                }
-                            }
-                        }
-                        return function(...args) {
-                            callApi(prop2, args, successCallback, null);
-                        }
-                    }
-                });
-            }
-        } else if (prop === 'withFailureHandler') {
-            return function(errorCallback) {
-                return new Proxy({}, {
-                    get: function(target2, prop2) {
-                        if (prop2 === 'withSuccessHandler') {
-                            return function(successCallback) {
-                                return function(...args) {
-                                    callApi(prop, args, successCallback, errorCallback);
-                                }
-                            }
-                        }
-                        return function(...args) {
-                            callApi(prop2, args, null, errorCallback);
-                        }
-                    }
-                });
-            }
-        }
-        return function(...args) {
-            callApi(prop, args, null, null);
-        }
-    }
-});
-
-function callApi(functionName, args, onSuccess, onError) {
-    if (API_URL === 'VUI_LONG_THAY_THE_BANG_LINK_WEB_APP_CUA_BAN') {
-        console.warn(`Đang gọi hàm ${ functionName } nhưng chưa có API_URL thực tế.`);
-        if (onError) onError('API_URL chưa được cấu hình. Vui lòng deploy code.gs và dán link vào API_URL.');
-        return;
-    }
-    
-    // Show loading indicator if needed
-    
-    fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            action: functionName,
-            args: JSON.stringify(args)
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === 'success') {
-            if (onSuccess) onSuccess(result.data);
-        } else {
-            console.error('API Error:', result.error);
-            if (onError) onError(result.error);
-            else alert('Lỗi: ' + result.error);
-        }
-    })
-    .catch(error => {
-        console.error('Fetch Error:', error);
-        if (onError) onError(error.toString());
-        else alert('Lỗi kết nối API: ' + error.toString());
-    });
-}
+                                                
+// --- Script Blocks Merged ---
 
 // -----------------------------------------------------------
 // 📌 HASH ROUTING LOGIC
