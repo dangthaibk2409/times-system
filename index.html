@@ -5331,8 +5331,20 @@ console.log('--- JS Block: Foundation started ---');
                         const saved = localStorage.getItem('meds_unscheduled');
                         if (saved && localStorage.getItem('meds_schedule_date') === dateVal) currentUnscheduled = JSON.parse(saved);
                     } catch (e) { }
-                    setUnscheduledData([...currentUnscheduled, ...(out.unscheduled || [])], dateVal);
-                    alert(`Đã xếp thêm thành công ${out.addedCount} ca!\nTổng số ca rớt hiện tại: ${window.lastUnscheduledData.length} ca.`);
+                    const newUnscheduled = out.unscheduled || [];
+                    setUnscheduledData([...currentUnscheduled, ...newUnscheduled], dateVal);
+                    const addedCount = Number(out.addedCount || 0);
+                    const failCount = Number(out.unscheduledCount ?? newUnscheduled.length);
+                    const totalFail = window.lastUnscheduledData.length;
+                    const contentEl = document.getElementById('custom-popup-content');
+                    if (contentEl) contentEl.innerHTML = `
+                    <div>✅ Xếp bổ sung thành công: <b style="color:#27ae60; font-size:18px;">${addedCount}</b> ca</div>
+                    <div>❌ Không xếp được lần này: <b style="color:#c0392b; font-size:18px;">${failCount}</b> ca</div>
+                    <hr style="border:0; border-top:1px dashed #ccc; margin:10px 0;">
+                    <div style="font-size:14px; color:#7f8c8d;">Tổng số ca rớt hiện tại: <b>${totalFail}</b> ca</div>`;
+                    const popup = document.getElementById('custom-success-popup');
+                    if (popup) popup.style.display = 'flex';
+                    else alert(`Đã xếp thêm thành công ${addedCount} ca!\nKhông xếp được lần này: ${failCount} ca.\nTổng số ca rớt hiện tại: ${totalFail} ca.`);
                     loadScheduleList();
                 })
                 .withFailureHandler(err => { btn.innerText = '⚡ XẾP BỔ SUNG BN MỚI'; btn.disabled = false; alert("Lỗi kết nối: " + err.message); })
